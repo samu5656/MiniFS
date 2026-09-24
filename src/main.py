@@ -2,28 +2,37 @@ from disk import VirtualDisk
 from filesystem import FileSystem
 
 def main():
-    print("MiniFS - Phase 2 File Operations Demo\n")
+    print("MiniFS - Phase 4 Metadata & Permissions Demo\n")
     
     disk = VirtualDisk(64, 64)
-    fs = FileSystem(disk)
+    fs = FileSystem(disk, current_user="alice")
     
-    print("1. Creating file 'notes.txt'")
-    fs.create_file("notes.txt")
-    print(f"Files: {list(fs.files.keys())}")
+    print("1. User 'alice' creates 'shared.txt'")
+    fs.create_file("shared.txt")
+    fs.write_file("shared.txt", "Hello World")
+    print(f"Metadata:\n{fs.get_metadata('shared.txt')}")
     
-    print("\n2. Writing to 'notes.txt'")
-    fs.write_file("notes.txt", "Operating Systems Project")
-    print(f"Content: {fs.read_file('notes.txt')}")
-    print(disk.get_statistics())
+    print("\n2. User 'bob' tries to read 'shared.txt' (Permissions: rw-r--r--)")
+    fs.current_user = "bob"
+    print(f"Bob reads: {fs.read_file('shared.txt')}")
     
-    print("\n3. Renaming to 'project_notes.txt'")
-    fs.rename_file("notes.txt", "project_notes.txt")
-    print(f"Files: {list(fs.files.keys())}")
+    print("\n3. User 'bob' tries to write to 'shared.txt'")
+    try:
+        fs.write_file("shared.txt", "Bob's text")
+    except Exception as e:
+        print(f"Error: {e}")
+        
+    print("\n4. User 'alice' changes permissions to 'rw-rw-r--'")
+    fs.current_user = "alice"
+    # Using 'others' permission for 'bob' in this simplified model.
+    # So we change 'others' to 'rw-' -> rw-r--rw-
+    fs.chmod("shared.txt", "rw-r--rw-")
+    print(f"Metadata updated:\n{fs.get_metadata('shared.txt')}")
     
-    print("\n4. Deleting 'project_notes.txt'")
-    fs.delete_file("project_notes.txt")
-    print(f"Files: {list(fs.files.keys())}")
-    print(disk.get_statistics())
+    print("\n5. User 'bob' tries to write again")
+    fs.current_user = "bob"
+    fs.write_file("shared.txt", "Bob's text")
+    print(f"Bob reads: {fs.read_file('shared.txt')}")
 
 if __name__ == "__main__":
     main()

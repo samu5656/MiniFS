@@ -13,7 +13,7 @@ class TestFileSystem(unittest.TestCase):
         
     def test_create_file(self):
         self.fs.create_file("test.txt")
-        self.assertIn("test.txt", self.fs.files)
+        self.assertIn("test.txt", self.fs.current_directory.children)
         
     def test_create_duplicate(self):
         self.fs.create_file("test.txt")
@@ -25,7 +25,7 @@ class TestFileSystem(unittest.TestCase):
         self.fs.write_file("notes.txt", "Operating Systems")
         content = self.fs.read_file("notes.txt")
         self.assertEqual(content, "Operating Systems")
-        file_obj = self.fs.files["notes.txt"]
+        file_obj = self.fs.current_directory.children["notes.txt"]
         self.assertEqual(len(file_obj.allocated_blocks), 1) # 17 bytes < 64 bytes block size
         
     def test_delete_file(self):
@@ -33,19 +33,19 @@ class TestFileSystem(unittest.TestCase):
         self.fs.write_file("notes.txt", "OS")
         self.assertEqual(self.disk.get_used_blocks(), 1)
         self.fs.delete_file("notes.txt")
-        self.assertNotIn("notes.txt", self.fs.files)
+        self.assertNotIn("notes.txt", self.fs.current_directory.children)
         self.assertEqual(self.disk.get_used_blocks(), 0)
         
     def test_rename_file(self):
         self.fs.create_file("notes.txt")
         self.fs.write_file("notes.txt", "data")
-        blocks = self.fs.files["notes.txt"].allocated_blocks
+        blocks = self.fs.current_directory.children["notes.txt"].allocated_blocks
         
         self.fs.rename_file("notes.txt", "new_notes.txt")
-        self.assertNotIn("notes.txt", self.fs.files)
-        self.assertIn("new_notes.txt", self.fs.files)
+        self.assertNotIn("notes.txt", self.fs.current_directory.children)
+        self.assertIn("new_notes.txt", self.fs.current_directory.children)
         self.assertEqual(self.fs.read_file("new_notes.txt"), "data")
-        self.assertEqual(self.fs.files["new_notes.txt"].allocated_blocks, blocks)
+        self.assertEqual(self.fs.current_directory.children["new_notes.txt"].allocated_blocks, blocks)
         
     def test_large_file(self):
         self.fs.create_file("large.txt")

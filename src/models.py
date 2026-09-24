@@ -11,3 +11,14 @@ class File:
         self.created_at = time.time()
         self.modified_at = self.created_at
         self.allocated_blocks = []
+
+class Directory:
+    def __init__(self, name, parent=None, owner="user", permissions="rwxr-xr-x"):
+        self.name = name
+        self.type = "directory"
+        self.children = {}
+        self.parent = parent
+        self.owner = owner
+        self.permissions = permissions
+        self.created_at = time.time()
+        self.modified_at = self.created_at
