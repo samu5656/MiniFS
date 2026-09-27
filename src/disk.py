@@ -53,11 +53,25 @@ class VirtualDisk:
             return 0.0
         return (self.get_used_blocks() / self.total_blocks) * 100
 
+    def get_fragmentation(self):
+        """Calculate the number of separated free-space regions (simulation metric)."""
+        regions = 0
+        in_free_region = False
+        for state in self.blocks:
+            if state == "FREE":
+                if not in_free_region:
+                    regions += 1
+                    in_free_region = True
+            else:
+                in_free_region = False
+        return regions
+
     def get_statistics(self):
         """Return basic disk statistics."""
         return {
             "Total Blocks": self.total_blocks,
             "Used Blocks": self.get_used_blocks(),
             "Free Blocks": self.get_free_blocks(),
-            "Usage": f"{self.get_usage():.1f}%"
+            "Usage": f"{self.get_usage():.1f}%",
+            "Fragmentation": self.get_fragmentation()
         }

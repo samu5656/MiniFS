@@ -1,38 +1,32 @@
+import tkinter as tk
 from disk import VirtualDisk
 from filesystem import FileSystem
+from gui import MiniFSGUI
 
 def main():
-    print("MiniFS - Phase 4 Metadata & Permissions Demo\n")
-    
+    print("MiniFS - Starting GUI...")
     disk = VirtualDisk(64, 64)
-    fs = FileSystem(disk, current_user="alice")
+    fs = FileSystem(disk, current_user="user")
     
-    print("1. User 'alice' creates 'shared.txt'")
-    fs.create_file("shared.txt")
-    fs.write_file("shared.txt", "Hello World")
-    print(f"Metadata:\n{fs.get_metadata('shared.txt')}")
+    # Pre-populate with some data for demonstration
+    fs.mkdir("projects")
+    fs.create_file("readme.txt")
+    fs.write_file("readme.txt", "Welcome to MiniFS!")
     
-    print("\n2. User 'bob' tries to read 'shared.txt' (Permissions: rw-r--r--)")
-    fs.current_user = "bob"
-    print(f"Bob reads: {fs.read_file('shared.txt')}")
+    root = tk.Tk()
+    app = MiniFSGUI(root, fs)
     
-    print("\n3. User 'bob' tries to write to 'shared.txt'")
+    # Force window to maximize to guarantee visibility
     try:
-        fs.write_file("shared.txt", "Bob's text")
-    except Exception as e:
-        print(f"Error: {e}")
-        
-    print("\n4. User 'alice' changes permissions to 'rw-rw-r--'")
-    fs.current_user = "alice"
-    # Using 'others' permission for 'bob' in this simplified model.
-    # So we change 'others' to 'rw-' -> rw-r--rw-
-    fs.chmod("shared.txt", "rw-r--rw-")
-    print(f"Metadata updated:\n{fs.get_metadata('shared.txt')}")
+        root.state('zoomed')
+    except tk.TclError:
+        pass # zoomed might fail on some platforms
     
-    print("\n5. User 'bob' tries to write again")
-    fs.current_user = "bob"
-    fs.write_file("shared.txt", "Bob's text")
-    print(f"Bob reads: {fs.read_file('shared.txt')}")
+    root.lift()
+    root.focus_force()
+    
+    print("Entering mainloop (Maximized)")
+    root.mainloop()
 
 if __name__ == "__main__":
     main()

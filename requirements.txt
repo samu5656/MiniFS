@@ -1,0 +1,3 @@
+# MiniFS uses the Python Standard Library.
+# No external dependencies are required.
+# Tkinter is included with standard Python distributions.

@@ -39,6 +39,10 @@ class TestVirtualDisk(unittest.TestCase):
         alloc1 = disk.allocate_blocks(3) # 0, 1, 2
         alloc2 = disk.allocate_blocks(3) # 3, 4, 5
         disk.free_blocks(alloc1) # 0, 1, 2 are FREE
+        
+        # Free regions: [0,1,2] and [6,7,8,9], so 2 regions
+        self.assertEqual(disk.get_fragmentation(), 2)
+        
         with self.assertRaises(Exception):
             disk.allocate_blocks(5) # not enough contiguous
 
