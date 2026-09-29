@@ -56,6 +56,78 @@ class TestFileSystem(unittest.TestCase):
     def test_file_not_found(self):
         with self.assertRaises(Exception):
             self.fs.read_file("ghost.txt")
+
+    def test_defragment(self):
+        self.fs.create_file("file1.txt")
+        self.fs.write_file("file1.txt", "A" * 64) # 1 block
+        
+        self.fs.create_file("file2.txt")
+        self.fs.write_file("file2.txt", "B" * 64) # 1 block
+        
+        self.fs.create_file("file3.txt")
+        self.fs.write_file("file3.txt", "C" * 64) # 1 block
+        
+        # Delete file2 to create fragmentation
+        self.fs.delete_file("file2.txt")
+        
+        # Current disk: [USED, FREE, USED]
+        self.assertEqual(self.disk.blocks[:3], ["USED", "FREE", "USED"])
+        self.assertEqual(self.disk.get_fragmentation(), 2)
+        
+        # Defragment
+        self.fs.defragment()
+        
+        # Disk should now be: [USED, USED, FREE]
+        self.assertEqual(self.disk.blocks[:3], ["USED", "USED", "FREE"])
+        self.assertEqual(self.disk.get_fragmentation(), 1)
+        self.assertEqual(self.fs.current_directory.children["file1.txt"].allocated_blocks, [0])
+        self.assertEqual(self.fs.current_directory.children["file3.txt"].allocated_blocks, [1])
+    def test_file_locking(self):
+        self.fs.create_file("locked.txt")
+        self.fs.write_file("locked.txt", "data")
+        
+        self.fs.toggle_lock("locked.txt")
+        self.assertTrue(self.fs.current_directory.children["locked.txt"].locked)
+        
+        with self.assertRaisesRegex(Exception, "File in Use"):
+            self.fs.write_file("locked.txt", "new data")
             
+        with self.assertRaisesRegex(Exception, "File in Use"):
+            self.fs.read_file("locked.txt")
+            
+        with self.assertRaisesRegex(Exception, "File in Use"):
+            self.fs.delete_file("locked.txt")
+            
+        with self.assertRaisesRegex(Exception, "File in Use"):
+            self.fs.rename_file("locked.txt", "new_locked.txt")
+            
+        self.fs.toggle_lock("locked.txt")
+        self.fs.read_file("locked.txt") # should work now
+
+    def test_buffer_cache(self):
+        self.fs.create_file("cache.txt")
+        self.fs.write_file("cache.txt", "A" * 200) # 4 blocks
+        blocks = self.fs.current_directory.children["cache.txt"].allocated_blocks
+        
+        # Read the file
+        self.fs.read_file("cache.txt")
+        
+        self.assertEqual(self.fs.cache.misses, 4)
+        self.assertEqual(self.fs.cache.hits, 0)
+        
+        # Read it again
+        self.fs.read_file("cache.txt")
+        
+        self.assertEqual(self.fs.cache.misses, 4)
+        self.assertEqual(self.fs.cache.hits, 4)
+        
+        # Test capacity and eviction
+        self.fs.create_file("cache2.txt")
+        self.fs.write_file("cache2.txt", "B" * 150) # 3 blocks
+        self.fs.read_file("cache2.txt")
+        
+        # Capacity is 5, we have read 4 + 3 = 7 blocks, 2 should be evicted
+        self.assertEqual(len(self.fs.cache.cache), 5)
+        
 if __name__ == '__main__':
     unittest.main()

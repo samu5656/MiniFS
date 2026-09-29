@@ -778,6 +778,28 @@ Do not expose Python stack traces to normal users.
 
 ---
 
+# PHASE 7 — Memory Management & Swapping
+
+## Goal
+
+Demonstrate how an Operating System manages memory and swaps inactive processes to disk when RAM is full.
+
+## Features
+
+Implement:
+
+1. **Virtual RAM:** A simulated memory area (e.g., 16 blocks).
+2. **Processes:** Simulate starting a process that consumes memory blocks.
+3. **Swap Space:** Reserve a section of the existing Virtual Disk (e.g., blocks 48-63) as Swap Space.
+4. **Swapping Logic (FIFO/LRU):** When RAM is full and a new process starts, swap out an old process to the Swap Space, and swap in the new one.
+5. **GUI Update:** Add a "RAM" visualizer grid and a "Start Process" button. Show blocks moving between RAM and Swap Space.
+
+## Deliverable
+
+A functional Swapping simulation with GUI visualization.
+
+---
+
 # 10. Team Division
 
 ## Member 1 — File System Core

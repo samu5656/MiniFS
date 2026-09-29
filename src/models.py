@@ -11,6 +11,7 @@ class File:
         self.created_at = time.time()
         self.modified_at = self.created_at
         self.allocated_blocks = []
+        self.locked = False
 
 class Directory:
     def __init__(self, name, parent=None, owner="user", permissions="rwxr-xr-x"):
