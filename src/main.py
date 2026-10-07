@@ -26,8 +26,18 @@ def main():
     
     print(f"MiniFS - Selected strategy: {strategy}")
     disk = VirtualDisk(64, 64, allocation_strategy=strategy)
-    from memory import MemoryManager
-    mem_mgr = MemoryManager(disk)
+    try:
+        from memory import MemoryManager
+        mem_mgr = MemoryManager(disk)
+    except ImportError:
+        mem_mgr = None
+        
+    try:
+        from cpu import CPUScheduler
+        cpu_scheduler = CPUScheduler(algorithm="RR", quantum=2)
+    except ImportError:
+        cpu_scheduler = None
+        
     fs = FileSystem(disk, current_user="user")
     
     # Pre-populate with some data for demonstration
@@ -36,7 +46,7 @@ def main():
     fs.write_file("readme.txt", "Welcome to MiniFS!")
     
     root.deiconify() # Show main window again
-    app = MiniFSGUI(root, fs, mem_mgr)
+    app = MiniFSGUI(root, fs, mem_mgr, cpu_scheduler)
     
     # Force window to maximize to guarantee visibility
     try:
