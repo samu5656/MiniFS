@@ -301,11 +301,26 @@ class FileSystem:
         # Sort files by their current starting block to maintain relative order
         all_files.sort(key=lambda f: f.allocated_blocks[0])
         
+        # Preserve swap partition states (any SWAP_ blocks, or reserved swap partition)
+        swap_states = {}
+        swap_start = getattr(self.disk, 'swap_start', None)
+        swap_size = getattr(self.disk, 'swap_size', None)
+
+        for i, state in enumerate(self.disk.blocks):
+            if state.startswith("SWAP"):
+                swap_states[i] = state
+            elif swap_start is not None and swap_size is not None and swap_start <= i < swap_start + swap_size:
+                swap_states[i] = "SWAP_FREE"
+
         # Wipe the virtual disk
         self.disk.blocks = ["FREE"] * self.disk.total_blocks
+        for idx, state in swap_states.items():
+            if idx < self.disk.total_blocks:
+                self.disk.blocks[idx] = state
+
         if hasattr(self.disk, 'fat'):
             self.disk.fat = {i: None for i in range(self.disk.total_blocks)}
-            
+
         # Reallocate for each file using its original data size
         for f in all_files:
             blocks_needed = math.ceil(f.size / self.disk.block_size)

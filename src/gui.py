@@ -229,7 +229,9 @@ class MiniFSGUI:
                 color = "#F44336" # Red (used disk)
                 
             self.disk_canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="gray")
-            
+            if state.startswith("SWAP_"):
+                pid_text = state.replace("SWAP_", "")
+                self.disk_canvas.create_text(x1 + (block_w/2), 15, text=pid_text, font=("Arial", 7, "bold"), fill="black")
     def update_ram(self):
         if not self.mem_mgr: return
         self.ram_canvas.delete("all")
@@ -263,10 +265,19 @@ class MiniFSGUI:
         if not blocks: return
         
         try:
-            self.mem_mgr.start_process(pid, blocks)
+            evicted = self.mem_mgr.start_process(pid, blocks)
             self.update_ram()
             self.update_disk()
-            messagebox.showinfo("Process Started", f"Process {pid} started successfully.")
+            if evicted:
+                evicted_names = ", ".join(evicted)
+                messagebox.showinfo(
+                    "Swapping Occurred",
+                    f"Process {pid} started successfully.\n\n"
+                    f"[OS Swapping Event]\n"
+                    f"Virtual RAM was full! The OS evicted {evicted_names} from RAM to the Virtual Disk Swap Space (Orange blocks)."
+                )
+            else:
+                messagebox.showinfo("Process Started", f"Process {pid} started successfully.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
             

@@ -9,6 +9,8 @@ class Process:
 class MemoryManager:
     def __init__(self, disk, ram_size=16, swap_start=48, swap_size=16):
         self.disk = disk
+        self.disk.swap_start = swap_start
+        self.disk.swap_size = swap_size
         self.ram_size = ram_size
         self.ram = ["FREE"] * ram_size
         self.swap_start = swap_start
@@ -16,7 +18,8 @@ class MemoryManager:
         
         # Reserve swap space on disk
         for i in range(swap_start, swap_start + swap_size):
-            self.disk.blocks[i] = "SWAP_FREE"
+            if i < self.disk.total_blocks:
+                self.disk.blocks[i] = "SWAP_FREE"
             
         self.processes = {} # pid -> Process
         self.lru_queue = [] # List of pids to track LRU (First In First Out / Least Recently Used)
@@ -31,16 +34,18 @@ class MemoryManager:
         process = Process(pid, blocks_needed)
         self.processes[pid] = process
         
-        # Try to load into RAM
-        self._load_into_ram(process)
+        # Try to load into RAM (returns list of evicted process IDs if any)
+        return self._load_into_ram(process)
         
     def _load_into_ram(self, process):
         free_ram = sum(1 for b in self.ram if b == "FREE")
+        evicted = []
         
         # If not enough RAM, we must swap out older processes
         while free_ram < process.blocks_needed and self.lru_queue:
             victim_pid = self.lru_queue.pop(0) # Evict oldest process in RAM
             self._swap_out(self.processes[victim_pid])
+            evicted.append(victim_pid)
             free_ram = sum(1 for b in self.ram if b == "FREE")
             
         if free_ram < process.blocks_needed:
@@ -59,6 +64,7 @@ class MemoryManager:
                     
         process.state = "RUNNING"
         self.lru_queue.append(process.pid)
+        return evicted
         
     def _swap_out(self, process):
         """Move process from RAM to Swap Space on disk."""
@@ -68,7 +74,7 @@ class MemoryManager:
         # Find free swap blocks on disk
         free_swap = []
         for i in range(self.swap_start, self.swap_start + self.swap_size):
-            if self.disk.blocks[i] == "SWAP_FREE":
+            if i < self.disk.total_blocks and self.disk.blocks[i] in ("SWAP_FREE", "FREE"):
                 free_swap.append(i)
                 
         if len(free_swap) < len(process.ram_blocks):
