@@ -254,6 +254,11 @@ class FileSystem:
             if self.disk.allocation_strategy == "indexed" and obj.allocated_blocks:
                 meta.append(f"Index Block: {obj.allocated_blocks[0]}")
                 meta.append(f"Data Blocks: {obj.allocated_blocks[1:]}")
+                meta.append(f"Total Blocks: {len(obj.allocated_blocks)} (1 Index + {len(obj.allocated_blocks)-1} Data)")
+            elif self.disk.allocation_strategy == "linked" and obj.allocated_blocks:
+                chain = " -> ".join(f"[{b}]" for b in obj.allocated_blocks) + " -> EOF"
+                meta.append(f"FAT Chain: {chain}")
+                meta.append(f"Allocated Blocks: {obj.allocated_blocks}")
             else:
                 meta.append(f"Allocated Blocks: {obj.allocated_blocks}")
             

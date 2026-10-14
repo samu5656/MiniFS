@@ -28,25 +28,119 @@ A File System is the method and data structure an operating system uses to keep 
 
 ---
 
-## 2. Storage Management & Contiguous Allocation
+## 2A. Storage Management & Contiguous Allocation
 
 ### 📖 Theoretical Definition
-File allocation methods define how disk blocks are allocated for files. **Contiguous Allocation** requires that each file occupies a set of contiguous (physically adjacent) blocks on the disk. This allows for fast sequential read performance but suffers from external fragmentation over time.
+File allocation methods define how disk blocks are allocated for files. **Contiguous Allocation** requires that each file occupies a set of contiguous (physically adjacent) blocks on the disk. 
+- **Advantage:** Fast sequential and direct read performance; minimal disk head movement.
+- **Disadvantage:** Suffers from **External Fragmentation** over time as files are created and deleted, leaving scattered holes that require periodic compaction (defragmentation).
 
 ### 💻 Where it is implemented
-- **Logic:** `src/disk.py` (`allocate_blocks` and `free_blocks` methods)
+- **Logic:** `src/disk.py` (`_allocate_contiguous` method)
 - **GUI:** `src/gui.py` (The Virtual Disk canvas visualization)
 
 ### 🚀 How to show the demo
-1. Select the `notes.txt` file you created.
-2. Click **Write** and enter a sentence (e.g., `"Operating Systems are amazing."`).
-3. Click OK.
+1. Launch the application:
+   ```powershell
+   python src/main.py
+   ```
+2. In the startup dialog, select **"Contiguous Allocation"** and click **OK**.
+3. Verify the bottom status bar reads: `Strategy: Contiguous`.
+4. Select `readme.txt` (or create a file `notes.txt`).
+5. Click **Write** and enter text requiring multiple blocks (e.g., enter 150 characters to occupy 3 blocks).
+6. Click **OK**.
 
 ### 👁️ What to observe
-- Look at the **Virtual Disk & Swap Space** visualization at the bottom of the window. 
-- Some of the green `[FREE]` blocks will instantly turn into red `[USED]` blocks. 
-- Because the allocation is contiguous, the red blocks will be clustered perfectly together in a single row without gaps.
-- The **System Stats** text below the disk will show an increase in "Used Blocks" and "Usage %".
+- Look at the **Virtual Disk & Swap Space** at the bottom.
+- Three green `[FREE]` blocks will turn into red `[USED]` blocks.
+- Because allocation is contiguous, the red blocks are grouped strictly together in a single unbroken sequence (e.g., blocks `0, 1, 2`).
+- Highlight `notes.txt` in the File Tree and verify the **File Information** panel displays:
+  `Allocated Blocks: [0, 1, 2]`.
+
+### 🗣️ What to tell the examiner
+> *"In Contiguous Allocation, every file must occupy consecutive physical blocks on disk. This provides optimal sequential access speed, but as files are deleted, free space gets fragmented into isolated holes, making large contiguous allocations fail even when total free space is sufficient."*
+
+---
+
+## 2B. Storage Management & Linked Allocation (FAT Style)
+
+### 📖 Theoretical Definition
+In **Linked Allocation**, each file is represented as a linked list of disk blocks that can be scattered anywhere across the disk. MiniFS implements a **File Allocation Table (FAT)**, where block-to-block pointers are kept in a centralized table structure rather than embedded inside the data blocks themselves.
+- **Advantage:** **Completely eliminates External Fragmentation.** Any free block anywhere on disk can be allocated to any file without needing contiguous space or compaction.
+- **Disadvantage:** Slower random/direct access because accessing block $N$ requires traversing the pointer chain from the start.
+
+### 💻 Where it is implemented
+- **Logic:** `src/disk.py` (`_allocate_linked` method, `self.fat` dictionary table)
+- **GUI:** `src/filesystem.py` (FAT Chain display in `get_metadata`), `src/gui.py`
+
+### 🚀 How to show the demo
+1. Launch the application:
+   ```powershell
+   python src/main.py
+   ```
+2. In the startup dialog, select **"Linked Allocation (FAT style)"** and click **OK**.
+3. Verify the bottom status bar reads: `Strategy: Linked`.
+4. Create three files in `/`: `f1.txt`, `f2.txt`, and `f3.txt`.
+5. Write data to each file:
+   - Select `f1.txt` -> Click **Write** -> Enter 100 characters (allocates blocks `[0, 1]`).
+   - Select `f2.txt` -> Click **Write** -> Enter 100 characters (allocates blocks `[2, 3]`).
+   - Select `f3.txt` -> Click **Write** -> Enter 100 characters (allocates blocks `[4, 5]`).
+6. Select `f2.txt` and click **Delete** (confirm with Yes).
+   - Blocks `[2, 3]` turn green (`FREE`), leaving a 2-block hole between `f1.txt` and `f3.txt`.
+7. Create a new file `large.txt`.
+8. Click **Write** on `large.txt` and enter 250 characters (requires 4 blocks).
+
+### 👁️ What to observe
+- On the **Virtual Disk & Swap Space**:
+  - In contiguous allocation, 4 blocks would fail to fit in the 2-block hole `[2, 3]` and would be pushed further down the disk.
+  - In **Linked Allocation**, the OS seamlessly fills the hole at blocks `[2, 3]` and continues into `[6, 7]`. Red blocks now appear at `2, 3, 6, 7`!
+- Single-click `large.txt` in the File Tree and inspect the **File Information** panel:
+  - `FAT Chain: [2] -> [3] -> [6] -> [7] -> EOF`
+  - `Allocated Blocks: [2, 3, 6, 7]`
+
+### 🗣️ What to tell the examiner
+> *"Notice how Linked Allocation completely solves External Fragmentation without needing defragmentation. Even though the 4 blocks were non-contiguous, the filesystem used the 2 free blocks trapped between existing files and continued with the next available blocks. The File Allocation Table links block 2 to 3, 3 to 6, 6 to 7, and terminates with EOF (-1)."*
+
+---
+
+## 2C. Storage Management & Indexed Allocation (Inode Style)
+
+### 📖 Theoretical Definition
+**Indexed Allocation** (the strategy used in Unix/Linux filesystems via **Inodes**) consolidates all pointers for a file into a single dedicated block called the **Index Block (Inode)**. The directory points to this index block, and the index block contains an array of direct pointers to each data block of the file.
+- **Advantage:** Combines the best of both worlds:
+  1. Supports fast, direct $O(1)$ random access to any logical block by reading the index entry directly.
+  2. Prevents external fragmentation because data blocks can reside anywhere on disk.
+- **Disadvantage:** Storage overhead for the index block itself (even small 1-block files require an extra index block).
+
+### 💻 Where it is implemented
+- **Logic:** `src/disk.py` (`_allocate_indexed` method: allocates 1 index block + $N$ data blocks)
+- **GUI:** `src/filesystem.py` (`get_metadata` separates Index Block from Data Blocks), `src/gui.py`
+
+### 🚀 How to show the demo
+1. Launch the application:
+   ```powershell
+   python src/main.py
+   ```
+2. In the startup dialog, select **"Indexed Allocation (Inode style)"** and click **OK**.
+3. Verify the bottom status bar reads: `Strategy: Indexed`.
+4. Create a new file called `report.txt`.
+5. Select `report.txt`, click **Write**, and enter 50 characters (requires 1 data block).
+6. Click `report.txt` in the File Tree and inspect the **File Information** panel.
+7. Click **Write** again and enter 200 characters (requires 4 data blocks).
+
+### 👁️ What to observe
+- When you first wrote 50 characters (1 data block), observe that **2 blocks** were allocated on the Virtual Disk.
+- In the **File Information** panel, point out:
+  - `Index Block: 0` (The Inode block storing block pointers)
+  - `Data Blocks: [1]` (The payload block)
+  - `Total Blocks: 2 (1 Index + 1 Data)`
+- When you wrote 200 characters (4 data blocks), inspect the updated panel:
+  - `Index Block: 0`
+  - `Data Blocks: [1, 2, 3, 4]`
+  - `Total Blocks: 5 (1 Index + 4 Data)`
+
+### 🗣️ What to tell the examiner
+> *"Indexed Allocation is how modern Unix filesystems structure Inodes. Rather than chaining pointers across the disk, the first allocated block is reserved exclusively as an Index Block. It contains direct address pointers to data blocks [1, 2, 3, 4]. If the OS needs to jump to the 3rd block of the file, it can do so in O(1) time without traversing intermediate blocks, while still preventing external fragmentation."*
 
 ---
 
@@ -128,9 +222,27 @@ When the physical memory (RAM) is completely filled by running processes, the OS
 5. Start a final process. ID: `P4`, Blocks needed: `4`.
 
 ### 👁️ What to observe
-- When you add `P1`, `P2`, and `P3`, watch the **Virtual RAM** canvas fill up with blue blocks representing those processes.
-- When you add `P4` (which exceeds the 16-block RAM limit), the OS performs **Swapping**.
-- Observe the **Virtual Disk** below the RAM. Orange blocks (`SWAP_USED`) will appear on the disk. Tell the examiner: *"The OS just evicted an older process from RAM to the Disk's Swap Space to make room for P4."*
+- When you add `P1`, `P2`, and `P3`, watch the **Virtual RAM** canvas fill up completely with blue blocks representing those processes (6 + 6 + 4 = 16 blocks).
+- Notice the **Virtual Disk & Swap Space** at the bottom: the last 16 blocks (blocks 48 to 63) are **Yellow**, representing dedicated, unallocated Swap Space (`SWAP_FREE`).
+- When you add `P4` (which requires 4 blocks), RAM has 0 free blocks. The OS performs **Swapping**:
+  1. A dialog pops up:
+     ```text
+     Swapping Occurred
+     Process P4 started successfully.
+     
+     [OS Swapping Event]
+     Virtual RAM was full! The OS evicted P1 from RAM to the Virtual Disk Swap Space (Orange blocks).
+     ```
+  2. In the **Virtual RAM**:
+     - `P1` has been evicted.
+     - `P4` is loaded into slots 0..3 (blue).
+     - Slots 4..5 are green (`FREE`).
+  3. In the **Virtual Disk & Swap Space**:
+     - Blocks 48 to 53 turn **Orange** and display **`P1`** on each block.
+- Optional bonus action: Click **Stop Process**, enter `P1`, and watch the orange blocks on the disk immediately return to yellow (`SWAP_FREE`), proving swap deallocation.
+
+### 🗣️ What to tell the examiner
+> *"When P4 arrived, the 16-block Virtual RAM was 100% saturated. The OS memory manager used Least Recently Used (LRU) page replacement to select the oldest process (P1) as the victim. P1 was swapped out of RAM into the dedicated swap partition on disk (highlighted in orange as P1), freeing up memory for P4 to execute immediately."*
 
 ---
 
